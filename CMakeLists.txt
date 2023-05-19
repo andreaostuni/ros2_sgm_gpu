@@ -35,6 +35,18 @@ find_package(stereo_msgs REQUIRED)
 
 find_package(OpenCV REQUIRED)
 
+set(dependencies 
+  cv_bridge
+  image_geometry
+  image_transport
+  message_filters
+  rclcpp
+  rclcpp_components
+  sensor_msgs
+  stereo_msgs
+  OpenCV
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -56,36 +68,20 @@ add_library(${PROJECT_NAME} SHARED
   src/left_right_consistency.cu
   src/median_filter.cu
 )
-ament_target_dependencies(${PROJECT_NAME}
-  cv_bridge
-  image_geometry
-  rclcpp
-  sensor_msgs
-  stereo_msgs
-  OpenCV
-)
+ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 
 # A component: sgm_gpu::SgmGpuNode
 add_library(${PROJECT_NAME}_component SHARED src/${PROJECT_NAME}_node.cpp)
-ament_target_dependencies(${PROJECT_NAME}_component
-  image_transport
-  message_filters
-  rclcpp
-  sensor_msgs
-  stereo_msgs
-)
+ament_target_dependencies(${PROJECT_NAME}_component ${dependencies})
 target_link_libraries(${PROJECT_NAME}_component ${PROJECT_NAME})
-rclcpp_components_register_nodes(${PROJECT_NAME}_component 
-  "sgm_gpu::SgmGpuNode")
-
+rclcpp_components_register_node(${PROJECT_NAME}_component PLUGIN "sgm_gpu::SgmGpuNode" EXECUTABLE ${PROJECT_NAME}_node)
 # Standalone node version of sgm_gpu::SgmGpuNode
-add_executable(${PROJECT_NAME}_node src/${PROJECT_NAME}_node_main.cpp)
-target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME}_component)
+
 
 install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_component 
   LIBRARY DESTINATION lib)
 install(TARGETS ${PROJECT_NAME}_node DESTINATION lib/${PROJECT_NAME})
-install(PROGRAMS script/test_stereo_publisher DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY test_data launch DESTINATION share/${PROJECT_NAME})
+install(PROGRAMS scripts/test_stereo_publisher DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
