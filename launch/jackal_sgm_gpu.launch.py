@@ -15,18 +15,12 @@
 
 
 from launch import LaunchDescription
-from launch_ros.actions import Node
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-from ament_index_python.packages import get_package_share_directory
-import os
 
 
 def generate_launch_description():
     this_pkg_name = "sgm_gpu"
-    package_dir = get_package_share_directory(this_pkg_name)
-    configured_params = os.path.join(
-        package_dir, 'config', 'sensors_sim.yaml')
 
     container_sgm = ComposableNodeContainer(
         name='sgm_container',
