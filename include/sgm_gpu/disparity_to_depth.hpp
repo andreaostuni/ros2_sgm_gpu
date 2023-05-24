@@ -1,4 +1,4 @@
-// Copyright 2020 Hironori Fujimoto
+// Copyright 2020 Andrea Ostuni
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,26 +13,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef SGM_GPU__CONFIGURATION_HPP_
-#define SGM_GPU__CONFIGURATION_HPP_
+#ifndef SGM_GPU__DISPARITY_TO_DEPTH_HPP_
+#define SGM_GPU__DISPARITY_TO_DEPTH_HPP_
 
 #include <stdint.h>
-
-#define MAX_DISPARITY 128
-#define CENSUS_WIDTH 9
-#define CENSUS_HEIGHT 7
-
-#define TOP (CENSUS_HEIGHT - 1) / 2
-#define LEFT (CENSUS_WIDTH - 1) / 2
+// max depth evaluated
+#define bigZ 15.0f
 
 namespace sgm_gpu
 {
 
-typedef uint32_t cost_t;
+__global__ void disparityToDepth(const uint8_t* __restrict__ d_input, float* __restrict__ d_out, const float Tx,
+                                 uint32_t rows, uint32_t cols, const float delta_cx);
 
-}
-
-#define COSTAGG_BLOCKSIZE GPU_THREADS_PER_BLOCK
-#define COSTAGG_BLOCKSIZE_HORIZ GPU_THREADS_PER_BLOCK
-
-#endif  // SGM_GPU__CONFIGURATION_HPP_
+}  // namespace sgm_gpu
+#endif  // SGM_GPU__MEDIAN_FILTER_HPP_

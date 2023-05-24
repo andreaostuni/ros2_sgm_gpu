@@ -13,7 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 #ifndef SGM_GPU__SGM_GPU_HPP_
 #define SGM_GPU__SGM_GPU_HPP_
 
@@ -23,6 +22,7 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <stereo_msgs/msg/disparity_image.hpp>
+#include <image_geometry/stereo_camera_model.h>
 
 #include <opencv2/opencv.hpp>
 
@@ -33,6 +33,7 @@ class SgmGpu
 {
 private:
   rclcpp::Logger private_logger_;
+  image_geometry::StereoCameraModel stereo_model_;
   /**
    * @brief Parameter used in SGM algorithm
    *
@@ -48,27 +49,32 @@ private:
 
   // Memory for disparity computation
   // d_: for GPU device
-  uint8_t *d_im0_;
-  uint8_t *d_im1_;
-  uint32_t *d_transform0_;
-  uint32_t *d_transform1_;
-  uint8_t *d_cost_;
-  uint8_t *d_disparity_;
-  uint8_t *d_disparity_filtered_uchar_;
-  uint8_t *d_disparity_right_;
-  uint8_t *d_L0_;
-  uint8_t *d_L1_;
-  uint8_t *d_L2_;
-  uint8_t *d_L3_;
-  uint8_t *d_L4_;
-  uint8_t *d_L5_;
-  uint8_t *d_L6_;
-  uint8_t *d_L7_;
-  uint16_t *d_s_;
+  uint8_t* d_im0_;
+  uint8_t* d_im1_;
+  uint32_t* d_transform0_;
+  uint32_t* d_transform1_;
+  uint8_t* d_cost_;
+  uint8_t* d_disparity_;
+  uint8_t* d_disparity_filtered_uchar_;
+  uint8_t* d_disparity_right_;
+  uint8_t* d_L0_;
+  uint8_t* d_L1_;
+  uint8_t* d_L2_;
+  uint8_t* d_L3_;
+  uint8_t* d_L4_;
+  uint8_t* d_L5_;
+  uint8_t* d_L6_;
+  uint8_t* d_L7_;
+  uint16_t* d_s_;
+
+  float* d_depth_;
 
   bool memory_allocated_;
 
   uint32_t cols_, rows_;
+  // for depth computation
+  float Tx_;
+  float delta_cx_;
 
   void allocateMemory(uint32_t cols, uint32_t rows);
   void freeMemory();
@@ -78,12 +84,12 @@ private:
    */
   void resizeToDivisibleBy4(cv::Mat& left_image, cv::Mat& right_image);
 
-  void convertToMsg(
-    const cv::Mat_<unsigned char>& disparity, 
-    const sensor_msgs::msg::CameraInfo& left_camera_info,
-    const sensor_msgs::msg::CameraInfo& right_camera_info,
-    stereo_msgs::msg::DisparityImage& disparity_msg
-  );
+  void convertToMsg(const cv::Mat_<unsigned char>& disparity, const sensor_msgs::msg::CameraInfo& left_camera_info,
+                    const sensor_msgs::msg::CameraInfo& right_camera_info,
+                    stereo_msgs::msg::DisparityImage& disparity_msg);
+
+  void convertToDepthMsg(const cv::Mat_<float>& depth, const sensor_msgs::msg::CameraInfo& left_camera_info,
+                         const sensor_msgs::msg::CameraInfo& right_camera_info, sensor_msgs::msg::Image& depth_msg);
 
 public:
   /**
@@ -92,16 +98,12 @@ public:
   SgmGpu(rclcpp::Logger& parent_logger);
   ~SgmGpu();
 
-  bool computeDisparity(
-    const sensor_msgs::msg::Image& left_image, 
-    const sensor_msgs::msg::Image& right_image,
-    const sensor_msgs::msg::CameraInfo& left_camera_info,
-    const sensor_msgs::msg::CameraInfo& right_camera_info,
-    stereo_msgs::msg::DisparityImage& disparity_msg
-  );
+  bool computeDisparity(const sensor_msgs::msg::Image& left_image, const sensor_msgs::msg::Image& right_image,
+                        const sensor_msgs::msg::CameraInfo& left_camera_info,
+                        const sensor_msgs::msg::CameraInfo& right_camera_info,
+                        stereo_msgs::msg::DisparityImage& disparity_msg, sensor_msgs::msg::Image& depth_msg);
 };
 
-} // namespace sgm_gpu
+}  // namespace sgm_gpu
 
-#endif // SGM_GPU__SGM_GPU_HPP_
-
+#endif  // SGM_GPU__SGM_GPU_HPP_

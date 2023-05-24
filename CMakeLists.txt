@@ -67,6 +67,7 @@ add_library(${PROJECT_NAME} SHARED
   src/hamming_cost.cu
   src/left_right_consistency.cu
   src/median_filter.cu
+  src/disparity_to_depth.cu
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 

@@ -58,14 +58,14 @@ def generate_launch_description():
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
-            # ComposableNode(
-            #     package='image_view',
-            #     plugin='image_view::DisparityViewNode',
-            #     name='disparity_view',
-            #     remappings=[('image', '/sgm_gpu/disparity')],
-            #     parameters=[{'window_name': 'Disparity'}],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),
+            ComposableNode(
+                package='image_view',
+                plugin='image_view::ImageViewNode',
+                name='depth_view',
+                remappings=[('image', '/sgm_gpu_node/depth')],
+                parameters=[{'use_sim_time': True}, {'window_name': 'Depth'}],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
             ComposableNode(
                 package='image_view',
                 plugin='image_view::StereoViewNode',
