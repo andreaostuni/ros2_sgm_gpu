@@ -159,27 +159,23 @@ bool SgmGpu::computeDisparity(
   // Resize images to their width and height divisible by 4 for limit of CUDA code
   resizeToDivisibleBy4(left_mono8->image, right_mono8->image);
 
-  // Reallocate memory if needed
-  // bool size_changed = (
-  //   cols_ != left_mono8->image.cols || 
-  //   rows_ != left_mono8->image.rows
-  // );
   if (!stereo_model_.initialized())
+  {
+    stereo_model_.fromCameraInfo(left_camera_info, right_camera_info);
+    Tx_ = stereo_model_.right().Tx();
+    delta_cx_ = stereo_model_.left().cx() - stereo_model_.right().cx();
+    if(delta_cx_ > FLT_EPSILON)
     {
-      stereo_model_.fromCameraInfo(left_camera_info, right_camera_info);
-      Tx_ = stereo_model_.right().Tx();
-      delta_cx_ = stereo_model_.left().cx() - stereo_model_.right().cx();
-      if(delta_cx_ > FLT_EPSILON)
-      {
-        RCLCPP_INFO_STREAM(private_logger_,
-          "cx of left and right camera are not same: \n" << 
-          "Left: " << stereo_model_.left().cx() << "\n" <<
-          "Right: " << stereo_model_.right().cx()
-        );
-        delta_cx_ = 0.0f;
-      }
-
+      RCLCPP_INFO_STREAM(private_logger_,
+        "cx of left and right camera are not same: \n" << 
+        "Left: " << stereo_model_.left().cx() << "\n" <<
+        "Right: " << stereo_model_.right().cx()
+      );
+      delta_cx_ = 0.0f;
     }
+  }
+
+  // Reallocate memory if needed
   bool size_changed = (cols_ != left_mono8->image.cols || rows_ != left_mono8->image.rows);
   if (!memory_allocated_ || size_changed)
     allocateMemory(left_mono8->image.cols, left_mono8->image.rows);
@@ -304,8 +300,6 @@ void SgmGpu::convertToMsg(
   disparity_msg.max_disparity = MAX_DISPARITY;
   disparity_msg.delta_d = 1.0;
 }
-
-// TODO : add this function to the class
 
 void SgmGpu::convertToDepthMsg(const cv::Mat_<float>& depth, 
   const sensor_msgs::msg::CameraInfo& left_camera_info,
