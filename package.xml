@@ -20,6 +20,7 @@
   <depend>sensor_msgs</depend>
   <depend>stereo_msgs</depend>
   <!-- <build_depend>nvidia-cuda-dev</build_depend> -->
+  <exec_depend>image_pipeline</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>image_view</exec_depend>
   <!-- <exec_depend>nvidia-cuda</exec_depend> -->
