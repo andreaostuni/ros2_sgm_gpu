@@ -37,7 +37,8 @@ def generate_launch_description():
                     ('left_image', 'left/image_rect'),
                     ('right_image', 'right/image_rect'),
                     ('left_camera_info', 'left/camera_info'),
-                    ('right_camera_info', 'right/camera_info')
+                    ('right_camera_info', 'right/camera_info'),
+                    ('depth', 'depth/image_raw'),
                 ],
                 parameters=[{'use_sim_time': True}],
                 extra_arguments=[{'use_intra_process_comms': True}],
@@ -93,7 +94,7 @@ def generate_launch_description():
                 plugin='image_view::ImageViewNode',
                 name='depth_view',
                 namespace='camera_stereo',
-                remappings=[('image', 'depth')],
+                remappings=[('image', 'depth/image_raw')],
                 parameters=[{'use_sim_time': True}, {'window_name': 'Depth'}],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
