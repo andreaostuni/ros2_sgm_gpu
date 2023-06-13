@@ -1,4 +1,4 @@
-// Copyright 2020 Hironori Fujimoto
+// Copyright 2020 Andrea Ostuni
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,14 +13,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef SGM_GPU__DISPARITY_TO_DEPTH_HPP_
+#define SGM_GPU__DISPARITY_TO_DEPTH_HPP_
 
-#include "sgm_gpu_node.hpp"
+#include <stdint.h>
+// max depth evaluated
+#define bigZ 30.0f
 
-int main(int argc, char** argv)
+namespace sgm_gpu
 {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<sgm_gpu::SgmGpuNode>());
-  rclcpp::shutdown();
-  
-  return 0;
-}
+
+__global__ void disparityToDepth(const uint8_t* __restrict__ d_input, float* __restrict__ d_out, const float Tx,
+                                 uint32_t rows, uint32_t cols, const float delta_cx);
+
+}  // namespace sgm_gpu
+#endif  // SGM_GPU__MEDIAN_FILTER_HPP_

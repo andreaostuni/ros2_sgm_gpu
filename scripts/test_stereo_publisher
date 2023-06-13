@@ -25,6 +25,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import Image
 
+
 class TestStereoPublisher(rclpy.node.Node):
     def __init__(self):
         super().__init__('stereo_test_publisher')
@@ -39,17 +40,24 @@ class TestStereoPublisher(rclpy.node.Node):
         self.right_info_pub_ = self.create_publisher(
             CameraInfo, '~/right/camera_info', 1)
 
+        # Load images
         image_directory = os.path.join(
             get_package_share_directory('sgm_gpu'), 'test_data')
         left_image_path = os.path.join(image_directory, 'left.png')
         right_image_path = os.path.join(image_directory, 'right.png')
 
+        # Load camera info
+        self.camera_left_frame_id = 'left_camera'
+        self.camera_right_frame_id = 'right_camera'
+
         # Load images
         cv_bridge = CvBridge()
         left_image = cv2.imread(left_image_path)
         right_image = cv2.imread(right_image_path)
-        self.left_image_msg_ = cv_bridge.cv2_to_imgmsg(left_image, encoding='bgr8')
-        self.right_image_msg_ = cv_bridge.cv2_to_imgmsg(right_image, encoding='bgr8')
+        self.left_image_msg_ = cv_bridge.cv2_to_imgmsg(
+            left_image, encoding='bgr8')
+        self.right_image_msg_ = cv_bridge.cv2_to_imgmsg(
+            right_image, encoding='bgr8')
 
         # Camera info is only used for set f and t value
         # to stereo_msgs/DisparityImage in sgm_gpu/SgmGpu component
@@ -64,8 +72,12 @@ class TestStereoPublisher(rclpy.node.Node):
         # Set timestamp to messages
         timestamp = self.get_clock().now().to_msg()
         self.left_image_msg_.header.stamp = timestamp
+        self.left_image_msg_.header.frame_id = self.camera_left_frame_id
+        self.right_image_msg_.header.frame_id = self.camera_right_frame_id
         self.right_image_msg_.header.stamp = timestamp
+        self.left_info_msg_.header.frame_id = self.camera_left_frame_id
         self.left_info_msg_.header.stamp = timestamp
+        self.right_info_msg_.header.frame_id = self.camera_right_frame_id
         self.right_info_msg_.header.stamp = timestamp
 
         # Publish
@@ -73,6 +85,7 @@ class TestStereoPublisher(rclpy.node.Node):
         self.right_image_pub_.publish(self.right_image_msg_)
         self.left_info_pub_.publish(self.left_info_msg_)
         self.right_info_pub_.publish(self.right_info_msg_)
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -82,6 +95,7 @@ def main(args=None):
 
     stereo_publisher.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

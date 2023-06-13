@@ -21,9 +21,11 @@
 #include "sgm_gpu/median_filter.hpp"
 #include "sgm_gpu/cost_aggregation.hpp"
 #include "sgm_gpu/left_right_consistency.hpp"
+#include "sgm_gpu/disparity_to_depth.hpp"
 
 #include <image_geometry/stereo_camera_model.h>
 #include <cv_bridge/cv_bridge.h>
+#include <iostream>
 
 namespace sgm_gpu
 {
@@ -34,7 +36,7 @@ cudaStream_t stream2_;
 cudaStream_t stream3_;
 
 SgmGpu::SgmGpu(rclcpp::Logger& parent_logger) : 
-  memory_allocated_(false), cols_(0), rows_(0), 
+  memory_allocated_(false), cols_(0), rows_(0),Tx_(0.0), stereo_model_(),
   private_logger_(parent_logger.get_child("libsgm_gpu"))
 {
   cudaStreamCreate(&stream1_);
@@ -82,6 +84,7 @@ void SgmGpu::allocateMemory(uint32_t cols, uint32_t rows)
   cudaMalloc((void **)&d_disparity_, sizeof(uint8_t) * total_pixel);
   cudaMalloc((void **)&d_disparity_filtered_uchar_, sizeof(uint8_t) * total_pixel);
   cudaMalloc((void **)&d_disparity_right_, sizeof(uint8_t) * total_pixel);
+  cudaMalloc((void **)&d_depth_, sizeof(float) * total_pixel);
 
   memory_allocated_ = true;
 }
@@ -108,15 +111,19 @@ void SgmGpu::freeMemory() {
   cudaFree(d_cost_);
   cudaFree(d_s_);
 
+  cudaFree(d_depth_);
+  
   memory_allocated_ = false;
 }
+
 
 bool SgmGpu::computeDisparity(
   const sensor_msgs::msg::Image& left_image, 
   const sensor_msgs::msg::Image& right_image,
   const sensor_msgs::msg::CameraInfo& left_camera_info,
   const sensor_msgs::msg::CameraInfo& right_camera_info,
-  stereo_msgs::msg::DisparityImage& disparity_msg
+  stereo_msgs::msg::DisparityImage& disparity_msg,
+  sensor_msgs::msg::Image& depth_msg
 )
 {
   if (left_image.width != right_image.width || left_image.height != right_image.height)
@@ -152,11 +159,24 @@ bool SgmGpu::computeDisparity(
   // Resize images to their width and height divisible by 4 for limit of CUDA code
   resizeToDivisibleBy4(left_mono8->image, right_mono8->image);
 
+  if (!stereo_model_.initialized())
+  {
+    stereo_model_.fromCameraInfo(left_camera_info, right_camera_info);
+    Tx_ = stereo_model_.right().Tx();
+    delta_cx_ = stereo_model_.left().cx() - stereo_model_.right().cx();
+    if(delta_cx_ > FLT_EPSILON)
+    {
+      RCLCPP_INFO_STREAM(private_logger_,
+        "cx of left and right camera are not same: \n" << 
+        "Left: " << stereo_model_.left().cx() << "\n" <<
+        "Right: " << stereo_model_.right().cx()
+      );
+      delta_cx_ = 0.0f;
+    }
+  }
+
   // Reallocate memory if needed
-  bool size_changed = (
-    cols_ != left_mono8->image.cols || 
-    rows_ != left_mono8->image.rows
-  );
+  bool size_changed = (cols_ != left_mono8->image.cols || rows_ != left_mono8->image.rows);
   if (!memory_allocated_ || size_changed)
     allocateMemory(left_mono8->image.cols, left_mono8->image.rows);
   
@@ -200,6 +220,10 @@ bool SgmGpu::computeDisparity(
   
   MedianFilter3x3<<<(total_pixel+MAX_DISPARITY-1)/MAX_DISPARITY, MAX_DISPARITY, 0, stream1_>>>(d_disparity_, d_disparity_filtered_uchar_, rows_, cols_);
   
+  // Disparity to Depth
+
+  disparityToDepth<<<grid_size, block_size, 0, stream1_>>>(d_disparity_filtered_uchar_, d_depth_, Tx_, rows_, cols_, delta_cx_);
+  
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
     RCLCPP_ERROR(private_logger_, "%s %d\n", cudaGetErrorString(err), err);
@@ -207,18 +231,22 @@ bool SgmGpu::computeDisparity(
   }
 
   cudaDeviceSynchronize();
+  //copy disparity
   cv::Mat disparity(rows_, cols_, CV_8UC1);
   cudaMemcpy(disparity.data, d_disparity_filtered_uchar_, sizeof(uint8_t)*total_pixel, cudaMemcpyDeviceToHost);
-
+  // copy depth
+  cv::Mat depth(rows_, cols_, CV_32FC1);
+  cudaMemcpy(depth.data, d_depth_, sizeof(float)*total_pixel, cudaMemcpyDeviceToHost);
   // Restore image size if resized to be divisible by 4
   if (cols_ != left_image.width || rows_ != left_image.height)
   {
     cv::Size input_size(left_image.width, left_image.height);
     cv::resize(disparity, disparity, input_size, 0, 0, cv::INTER_AREA);
+    cv::resize(depth, depth, input_size, 0, 0, cv::INTER_AREA);
   }
-
+  
   convertToMsg(disparity, left_camera_info, right_camera_info, disparity_msg);
-
+  convertToDepthMsg(depth, left_camera_info, right_camera_info, depth_msg);
   return true;
 }
 
@@ -265,14 +293,25 @@ void SgmGpu::convertToMsg(
 
   disparity_msg.header = left_camera_info.header;
 
-  image_geometry::StereoCameraModel stereo_model;
-  stereo_model.fromCameraInfo(left_camera_info, right_camera_info);
-  disparity_msg.f = stereo_model.left().fx();
-  disparity_msg.t = stereo_model.baseline();
+  disparity_msg.f = stereo_model_.left().fx();
+  disparity_msg.t = stereo_model_.baseline();
 
   disparity_msg.min_disparity = 0.0;
   disparity_msg.max_disparity = MAX_DISPARITY;
   disparity_msg.delta_d = 1.0;
 }
+
+void SgmGpu::convertToDepthMsg(const cv::Mat_<float>& depth, 
+  const sensor_msgs::msg::CameraInfo& left_camera_info,
+  const sensor_msgs::msg::CameraInfo& right_camera_info,
+  sensor_msgs::msg::Image& depth_msg){
+
+  cv_bridge::CvImage depth_converter(
+    left_camera_info.header, 
+    sensor_msgs::image_encodings::TYPE_32FC1, 
+    depth
+  );
+  depth_converter.toImageMsg(depth_msg);
+  }
 
 } // namespace sgm_gpu
