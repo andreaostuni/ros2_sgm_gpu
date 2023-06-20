@@ -66,12 +66,23 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
             ComposableNode(
+                package='image_proc',
+                plugin='image_proc::RectifyNode',
+                namespace='camera_color',
+                name='color_rectify_node',
+                remappings=[
+                     ('image', 'image_raw'),
+                ],
+                parameters=[{'use_sim_time': True}],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+            ComposableNode(
                 package='stereo_image_proc',
                 plugin='stereo_image_proc::PointCloudNode',
                 namespace='camera_stereo',
                 name='pointcloud_node',
                 remappings=[
-                    ('left/image_rect_color', 'left/image_raw'),
+                    ('left/image_rect_color', 'left/image_rect'),
                 ],
                 parameters=[{'use_sim_time': True}],
                 extra_arguments=[{'use_intra_process_comms': True}],
