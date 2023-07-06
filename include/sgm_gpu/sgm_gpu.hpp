@@ -17,6 +17,7 @@
 #define SGM_GPU__SGM_GPU_HPP_
 
 #include "sgm_gpu/configuration.hpp"
+#include "sgm_gpu/align_helper.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
@@ -34,6 +35,7 @@ class SgmGpu
 private:
   rclcpp::Logger private_logger_;
   image_geometry::StereoCameraModel stereo_model_;
+  // AlignCudaHelper align_cuda_helper_;
   /**
    * @brief Parameter used in SGM algorithm
    *
@@ -68,28 +70,55 @@ private:
   uint16_t* d_s_;
 
   float* d_depth_;
+  // for aligning depth image to color image
+  uint8_t* d_color_in_;
+  // int2* d_pixel_map_;
+  float* d_aligned_depth_to_color_;
+  uint8_t* d_aligned_color_to_depth_;
+
+  // intrinsics_ and extrinsics_ are used for aligning depth image to color image
+  camera_intrinsics h_color_intrinsics_;
+  camera_intrinsics h_depth_intrinsics_;
+  camera_intrinsics* d_color_intrinsics_;
+  camera_intrinsics* d_depth_intrinsics_;
+
+  bool intrinsics_set_;
+  Transform h_depth_color_extrinsics_;
+  Transform* d_depth_color_extrinsics_;
+  // transform h_color_depth_extrinsics_;
+  bool transform_set_;
 
   bool memory_allocated_;
+  bool memory_for_align_allocated_;
 
   uint32_t cols_, rows_;
+  uint32_t color_cols_, color_rows_;
+
   // for depth computation
   float Tx_;
   float delta_cx_;
 
   void allocateMemory(uint32_t cols, uint32_t rows);
+  void allocateMemoryForAlign(uint32_t cols, uint32_t rows, uint32_t color_cols, uint32_t color_rows);
   void freeMemory();
+  void freeMemoryForAlign();
 
   /**
    * @brief Resize images to be width and height divisible by 4 for limit of CUDA code
    */
   void resizeToDivisibleBy4(cv::Mat& left_image, cv::Mat& right_image);
 
+  void resizeToDivisibleBy4(cv::Mat& image);
+
   void convertToMsg(const cv::Mat_<unsigned char>& disparity, const sensor_msgs::msg::CameraInfo& left_camera_info,
                     const sensor_msgs::msg::CameraInfo& right_camera_info,
                     stereo_msgs::msg::DisparityImage& disparity_msg);
 
-  void convertToDepthMsg(const cv::Mat_<float>& depth, const sensor_msgs::msg::CameraInfo& left_camera_info,
-                         const sensor_msgs::msg::CameraInfo& right_camera_info, sensor_msgs::msg::Image& depth_msg);
+  void convertToDepthMsg(const cv::Mat_<float>& depth, const sensor_msgs::msg::CameraInfo& camera_info,
+                         sensor_msgs::msg::Image& depth_msg);
+
+  void convertToColorMsg(const cv::Mat_<cv::Vec3b>& color, const sensor_msgs::msg::CameraInfo& camera_info,
+                         sensor_msgs::msg::Image& color_msg);
 
 public:
   /**
@@ -102,6 +131,29 @@ public:
                         const sensor_msgs::msg::CameraInfo& left_camera_info,
                         const sensor_msgs::msg::CameraInfo& right_camera_info,
                         stereo_msgs::msg::DisparityImage& disparity_msg, sensor_msgs::msg::Image& depth_msg);
+  // set transform from color to depth
+  bool setTransform(const tf2::Transform& depth_to_color);
+
+  // set intrinsics of camera from camera_info and width and height of image
+  bool setIntrinsics(const sensor_msgs::msg::CameraInfo& camera_info, camera_intrinsics& intrinsics, uint32_t cols,
+                     uint32_t rows);
+
+  // TODO: implement overload function for cv::Mat
+  // bool computeDisparity(const cv::Mat& left_image, const cv::Mat& right_image,
+  //                       const sensor_msgs::msg::CameraInfo& left_camera_info,
+  //                       const sensor_msgs::msg::CameraInfo& right_camera_info,
+  //                       stereo_msgs::msg::DisparityImage& disparity_msg,
+  //                       sensor_msgs::msg::Image& depth_msg);
+
+  // TODO: implement overload funcion with aligned image
+  bool computeDisparity(const sensor_msgs::msg::Image& left_image, const sensor_msgs::msg::Image& right_image,
+                        const sensor_msgs::msg::Image& color_image,
+                        const sensor_msgs::msg::CameraInfo& left_camera_info,
+                        const sensor_msgs::msg::CameraInfo& right_camera_info,
+                        const sensor_msgs::msg::CameraInfo& color_camera_info,
+                        stereo_msgs::msg::DisparityImage& disparity_msg, sensor_msgs::msg::Image& depth_msg,
+                        sensor_msgs::msg::Image& aligned_color_to_depth_image,
+                        sensor_msgs::msg::Image& aligned_depth_to_color_image);
 };
 
 }  // namespace sgm_gpu
