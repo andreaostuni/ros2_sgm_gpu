@@ -99,9 +99,9 @@ void SgmGpu::allocateMemoryForAlign(uint32_t cols, uint32_t rows, uint32_t color
   int total_pixel = cols * rows;
   cudaMalloc((void **)&d_color_in_, sizeof(uint8_t) * total_color_pixel * 3);
   cudaMalloc((void **)&d_aligned_depth_to_color_, sizeof(float) * total_color_pixel);
-  cudaMemset(d_aligned_depth_to_color_, 0xff, sizeof(float) * total_color_pixel);
+  // cudaMemset(d_aligned_depth_to_color_, 0xff, sizeof(float) * total_color_pixel);
   cudaMalloc((void **)&d_aligned_color_to_depth_, sizeof(uint8_t) * total_pixel * 3);
-  cudaMemset(d_aligned_color_to_depth_, 0, sizeof(uint8_t) * total_pixel * 3);
+  // cudaMemset(d_aligned_color_to_depth_, 0, sizeof(uint8_t) * total_pixel * 3);
   
   // intrinsics and extrinsics
   cudaMalloc((void **)&d_depth_intrinsics_, sizeof(camera_intrinsics));
@@ -385,7 +385,6 @@ bool SgmGpu::computeDisparity(
   bool size_changed = (cols_ != left_mono8->image.cols || rows_ != left_mono8->image.rows);
   if(!memory_allocated_ || size_changed){
     allocateMemory(left_mono8->image.cols, left_mono8->image.rows);
-    // setIntrinsics(left_camera_info,h_depth_intrinsics_, left_mono8->image.cols, left_mono8->image.rows);
   }
   //* NEW CODE
   bool size_changed_color = (color_cols_ != color_rgb8->image.cols || color_rows_ != color_rgb8->image.rows);
@@ -415,6 +414,8 @@ bool SgmGpu::computeDisparity(
   size_t color_image_size = color_rgb8->image.total() * color_rgb8->image.channels() * sizeof(uint8_t);
   cudaMemcpyAsync(d_color_in_, color_rgb8->image.ptr<uint8_t>(), 
     color_image_size, cudaMemcpyHostToDevice, stream1_);
+  cudaMemset(d_aligned_depth_to_color_, 0xff, sizeof(float) * color_cols_ * color_rows_);
+  cudaMemset(d_aligned_color_to_depth_, 0, sizeof(uint8_t) * cols_ * rows_ * 3);
   //* END NEW CODE
   dim3 block_size;
   block_size.x = 32;
