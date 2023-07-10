@@ -32,6 +32,9 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(stereo_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 find_package(OpenCV REQUIRED)
 
@@ -45,6 +48,9 @@ set(dependencies
   sensor_msgs
   stereo_msgs
   OpenCV
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
 )
 
 if(BUILD_TESTING)
@@ -68,6 +74,8 @@ add_library(${PROJECT_NAME} SHARED
   src/left_right_consistency.cu
   src/median_filter.cu
   src/disparity_to_depth.cu
+  src/align_rgb.cu
+  src/align_helper.cu
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 

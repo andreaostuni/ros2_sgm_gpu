@@ -18,7 +18,7 @@
 
 #include <stdint.h>
 // max depth evaluated
-#define bigZ 30.0f
+// #define bigZ FLT_MAX
 
 namespace sgm_gpu
 {
