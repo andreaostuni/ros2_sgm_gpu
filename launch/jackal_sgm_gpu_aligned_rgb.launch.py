@@ -95,6 +95,19 @@ def generate_launch_description():
             ),
 
             ComposableNode(
+                package='stereo_image_proc',
+                plugin='stereo_image_proc::PointCloudNode',
+                namespace='camera_stereo',
+                name='pointcloud_node',
+                remappings=[
+                    ('left/image_rect_color', 'color_aligned_to_depth'),
+                    ('points2', 'color/points2'),
+                ],
+                parameters=[{'use_sim_time': True}],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+
+            ComposableNode(
                 package='image_view',
                 plugin='image_view::StereoViewNode',
                 name='stereo_view',

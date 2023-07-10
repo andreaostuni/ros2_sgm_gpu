@@ -12,7 +12,7 @@ __global__ void disparityToDepth(const uint8_t* __restrict__ d_input, float* __r
     return;
     
     if (d_input[y*cols + x] == 0)
-      d_out[y*cols + x] = bigZ;
+      d_out[y*cols + x] = 0xff;
     else
       d_out[y*cols + x] = -Tx / (d_input[y*cols + x] - (delta_cx));
 }
